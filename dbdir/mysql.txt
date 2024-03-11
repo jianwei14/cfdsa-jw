@@ -1,0 +1,15 @@
+docker run -d -p 3306:3306 --name mysql \ 
+    -e MYSQL_ROOT_PASSWORD=abc123 \
+    --mount type=bind, src=/opt/tmp/dbdir, dst=/var/lib/mysql \
+    mysql:8.3
+
+# Run container in our own bridge network
+docker run -d -p 8080:3000 \
+    --name fortune \
+    --network mynet
+    jianwei14/fortune:1.0.0
+
+# Run a debugging container, delete when we exit
+docker run -ti --rm \
+    --network mynet \
+    nicolaka/netshoot:v0.12 /usr/bin/bash
