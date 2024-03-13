@@ -1,0 +1,82 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bggapp-deploy
+  namespace: bggns
+  labels:
+    app: bgg
+    name: bggapp-deploy
+spec:
+  replicas: 3
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1 # Add 1 by 1 everytime
+      maxUnavailable: 0 # Cannot have any unavailable from 3 replica
+  selector:
+    matchLabels:
+      app: bgg
+      name: bggapp-po    
+  template:
+    metadata:
+      name: bgg-po
+      labels:
+        app: bgg
+        name: bggapp-po
+    spec:
+      containers:
+        - name: bggapp-container
+          image: stackupiss/bgg-backend:v2
+          imagePullPolicy: IfNotPresent
+          envFrom:
+          - configMapRef:
+              name: bgg-cm
+          - secretRef:
+              name: bggapp-secret
+          ports:
+          - name: bggapp-port
+            containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bggapp-svc
+  namespace: bggns
+  labels:
+    app: bgg
+    name: bggapp-svc
+spec:
+  type: ClusterIP
+  # type: NodePort
+  # type: LoadBalancer
+  selector:
+    app: bgg
+    name: bggapp-po
+  ports:
+  - port: 5000
+    targetPort: bggapp-port
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bggapp-ing
+  namespace: bggns
+  labels:
+    app: bgg
+    name: bggapp-ing
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bgg-139.59.223.175.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bggapp-svc
+                port:
+                  number: 5000
