@@ -9,6 +9,12 @@ metadata:
     name: bggapp-deploy
 spec:
   replicas: 3
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1 # Add 1 by 1 everytime
+      maxUnavailable: 0 # Cannot have any unavailable from 3 replica
   selector:
     matchLabels:
       app: bgg
@@ -22,7 +28,7 @@ spec:
     spec:
       containers:
         - name: bggapp-container
-          image: stackupiss/bgg-backend:v1
+          image: stackupiss/bgg-backend:v2
           imagePullPolicy: IfNotPresent
           envFrom:
           - configMapRef:

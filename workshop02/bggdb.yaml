@@ -4,7 +4,31 @@ kind: Namespace
 metadata:
   name: bggns
 
---- 
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dov-cm
+  namespace: bggns
+data:
+  myconfig.conf: |
+    Hello World
+  readme.txt: this is a readonly directory 
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bggdb-pvc
+  namespace: bggns
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+      storageClassName: do-block-storage-retain
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,6 +50,13 @@ spec:
         app: bgg
         name: bggdb-po
     spec:
+      volumes:
+        - name: cm-vol
+          configMap:
+            name: bgg-cm
+        - name: data-vol
+          persistentVolumeClaim:
+            claimName: bggdb-pvc
       containers:
       - name: bggdb-container
         image: stackupiss/bgg-database:v1
@@ -33,6 +64,12 @@ spec:
         ports:
         - name: bggdb-port
           containerPort: 3306
+        volumeMounts:
+        - mountPath: /opt
+          name: cm-vol
+          readOnly: true
+        - name: data-vol
+          mountPath: /var/lib/mysql
 ---
 apiVersion: v1
 kind: Service
