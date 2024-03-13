@@ -3,7 +3,19 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: csns
-
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: code-server-pvc
+  namespace: csns
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: do-block-storage-retain
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -26,9 +38,16 @@ spec:
         app: code-server
         name: code-server-po
     spec:
+      volumes:
+        - name: code-server-vol
+          configMap:
+            name: code-server-cm
+        - name: data-vol
+          persistentVolumeClaim:
+            claimName: code-server-pvc
       containers:
       - name: code-server-container
-        image: linuxserver/code-server:amd64-latest
+        image: linuxserver/code-server:amd64-4.22.0
         imagePullPolicy: IfNotPresent
         envFrom:
           - configMapRef:
@@ -38,7 +57,9 @@ spec:
         ports:
         - name: cs-port
           containerPort: 8443
-
+        volumeMounts:
+          - name: data-vol
+            mountPath: /config/workspace
 ---
 apiVersion: v1
 kind: Service
@@ -57,4 +78,27 @@ spec:
     - name: svc-web-port
       port: 8443
       targetPort: cs-port
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: code-server-ing
+  namespace: csns
+  labels:
+    app: code-server
+    name: code-server-ing
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: code-139.59.223.175.nip.io
+      http:
+        paths:
+          - path: /
+            backend:
+              service:
+                name: code-server-svc
+                port:
+                  name: svc-web-port
+            pathType: Prefix
     
