@@ -1,4 +1,15 @@
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dov-cm
+  namespace: myns
+data:
+  myconfig.conf: |
+    Hello World
+  readme.txt: this is a readonly directory
+
+---
 apiVersion: v1 # If its core, you can ommit, else core/v1
 kind: Pod
 metadata:
@@ -8,6 +19,10 @@ metadata:
     app: dov
     env: dev
 spec:
+  volumes:
+    - name: cm-vol
+      configMap:
+        name: dov-cm
   containers:
     - name: dov-container
       image: jianwei14/bear:1.0.0
@@ -30,4 +45,31 @@ spec:
           port: web-port
         periodSeconds: 30
         initialDelaySeconds: 5
+      volumeMounts:
+        - mountPath: /opt
+          name: cm-vol
+          readOnly: true
 
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dov-ing
+  namespace: myns
+  labels:
+    app: dov
+    name: dov-ing
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: dov-139.59.223.175.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dov-svc
+                port:
+                  name: svc-web-port
+              
