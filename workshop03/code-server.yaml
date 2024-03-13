@@ -1,0 +1,60 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: csns
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: code-server-deploy
+  namespace: csns
+  labels:
+    app: code-server
+    name: code-server-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: code-server
+      name: code-server-po
+  template:
+    metadata:
+      name: code-server-po
+      labels:
+        app: code-server
+        name: code-server-po
+    spec:
+      containers:
+      - name: code-server-container
+        image: linuxserver/code-server:amd64-latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+          - configMapRef:
+              name: code-server-cm
+          - secretRef:
+              name: code-server-secret
+        ports:
+        - name: cs-port
+          containerPort: 8443
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: code-server-svc
+  namespace: csns
+  labels:
+    app: code-server
+    name: code-server-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: code-server
+    name: code-server-po
+  ports:
+    - name: svc-web-port
+      port: 8443
+      targetPort: cs-port
+    
