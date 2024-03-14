@@ -1,0 +1,164 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mini-sts
+  namespace: minins
+  labels:
+    app: mini
+    name: mini-sts
+spec:
+  replicas: 3 # 3 not 4
+  serviceName: mini-hsvc
+  selector:
+    matchLabels:
+      app: mini
+      name: mini-po
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: data-vol
+    spec:
+      accessModes: [ ReadWriteOnce]
+      storageClassName: do-block-storage
+      resources:
+        requests:
+          storage: 1Gi
+  template:
+    metadata:
+      name: mini-po
+      labels:
+        app: mini
+        name: mini-po
+    spec:
+      initContainers:
+        - name: mini-init
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          command:
+          - /bin/sh
+          - -c
+          - "chown 1001:1001 /opt/data"
+          volumeMounts:
+          - mountPath: /opt/data
+            name: data-vol
+      containers:
+        - name: mini-container
+          image: bitnami/minio:2023.12.23
+          imagePullPolicy: IfNotPresent
+          command: # exec
+          - minio
+          - server
+          - --address=:9000
+          - --console-address=:9090
+          - mini-sts-{0...2}.mini-hsvc.mini.svc.cluster.local/opt/data
+          # command: # shell
+          # - /bin/sh
+          # - -c
+          # - "minio server --address=:{}"
+          envFrom:
+          - configMapRef:
+              name: mini-cm
+          - secretRef:
+              name: mini-secret
+          ports:
+          - name: health-port
+            containerPort: 900
+          - name: server-port
+            containerPort: 9000
+          - name: console-port
+            containerPort: 9090
+          volumeMounts:
+          - mountPath: /opt/data
+            name: data-vol
+          # readinessProbe:
+          #   httpGet:
+          #     path: /minio/health/ready
+          #     port: 900
+          #   periodSeconds: 30
+          #   initialDelaySeconds: 5
+          # livenessProbe:
+          #   httpGet:
+          #     path: /minio/health/live
+          #     port: 900
+          #   periodSeconds: 30
+          #   initialDelaySeconds: 5
+          resources:
+            requests:
+              cpu: 200m
+              memory: 250Mi
+            limits:
+              cpu: 200m
+              memory: 250Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mini-hsvc
+  namespace: minins
+  labels:
+    app: mini
+    name: mini-hsvc
+spec:
+  clusterIP: None
+  ports:
+    - name: hsvc-server-port
+      port: 9000
+      targetPort: server-port
+    - name: hsvc-console-port
+      port: 9090
+      targetPort: console-port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mini-svc
+  namespace: minins
+  labels:
+    app: mini
+    name: mini-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: mini
+    name: mini-po
+  ports:
+    - name: svc-server-port
+      port: 9000
+      targetPort: server-port
+    - name: svc-con-port
+      port: 9090
+      targetPort: console-port
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mini-ing
+  namespace: minins
+  labels:
+    app: mini
+    name: mini-ing
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: console-139.59.223.175.nip.io
+      http:
+        paths:
+          - path: /
+            backend:
+              service:
+                name: mini-svc
+                port:
+                  name: svc-server-port
+            pathType: Prefix
+    - host: console-139.59.223.175.nip.io
+      http:
+        paths:
+          - path: /
+            backend:
+              service:
+                name: mini-svc
+                port:
+                  name: svc-con-port
+            pathType: Prefix

@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minins
+---
+apiVersion: v1 
+kind: ConfigMap 
+metadata:
+  name: mini-cm
+  namespace: minins
+  labels:
+    app: mini
+data:
+  MINIO_CI_CD: "1"
+---
+apiVersion: v1 
+kind: Secret  
+metadata:
+  name: mini-secret
+  namespace: minins
+  labels:
+    app: mini
+type: Opaque
+data:
+  MINI_ROOT_USER: cm9vdHVzZXI= # rootuser
+  MINI_ROOT_PASSWORD: cm9vdHBhc3N3b3Jk # rootpassword
