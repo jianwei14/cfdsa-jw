@@ -5,6 +5,7 @@ resources:
 - ../../base
 
 namespace: test-ns
+
 commonLabels:
   env: test
   dept: eng
@@ -16,3 +17,26 @@ replicas:
 images:
 - name: chukmunnlee/dov-bear
   newTag: v5
+
+configMapGenerator:
+- name: dov-cm
+  namespace: myns
+  behavior: merge
+  literals:
+  - INSTANCE_NAME=this is from kustomize configmap generator
+
+patches:
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: dov-deploy
+  path: patch_deploy.yaml
+
+patches:
+- target:
+    group: networking.k8s.io
+    version: v1
+    kind: Ingress
+    name: dov-ing
+  path: patch_ingress.yaml
